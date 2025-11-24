@@ -2,7 +2,6 @@
 
 该项目在 **TRAE SOLO WorkSpace@兰州** 活动下demo制作环节产物（2小时）
 
-![1213.jpg](https://youke1.picui.cn/s1/2025/11/24/69246e964f912.jpg)
 
 
 一个无需后端、支持离线与局域网协作的白板应用。基于浏览器 Canvas 与 IndexedDB 数据持久化，支持手动信令的 WebRTC P2P 同步。

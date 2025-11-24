@@ -24,7 +24,7 @@
 ## 启动方式
 - 使用 Python 本地启动：
   ```powershell
-  python.exe -m http.server 8000 --bind 127.0.0.1 --directory d:\demo\PeerBoard
+  python.exe -m http.server 8000 --bind 127.0.0.1 --directory d:\\PeerBoard
   ```
   - 打开：`http://127.0.0.1:8000/index.html`
   - 如端口占用，替换 `8000` 为其他端口

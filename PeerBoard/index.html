@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeerBoard - 离线协作白板</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 画布容器 -->
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+    </div>
+
+    <!-- 主工具条 (左上角浮层) -->
+    <div id="toolbar" class="overlay toolbar">
+        <div class="toolbar-toggle" id="toolbar-toggle">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+        </div>
+        <div class="toolbar-content" id="toolbar-content">
+            <button class="tool-btn active" data-tool="select" title="选择">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 3l18 9-8 2-2 8z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="pan" title="平移">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 11V7a1 1 0 0 1 2 0v4h1V5a1 1 0 0 1 2 0v6h1V4a1 1 0 0 1 2 0v7h1V7a1 1 0 0 1 2 0v9c0 3-2 5-5 5h-4c-3 0-5-2-5-5v-5z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="pencil" title="铅笔">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="marker" title="标记笔">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" opacity="0.5">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="line" title="直线">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="20" x2="20" y2="4"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="arrow" title="箭头">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="20" x2="20" y2="4"/>
+                    <polyline points="13,4 20,4 20,11"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="rectangle" title="矩形">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="6" width="16" height="12"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="circle" title="圆形">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="8"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="text" title="文本">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 4v3h5v12h4V7h5V4z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="sticky" title="贴纸">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 4h16v12h-6v4H4V4zm2 2v10h8v4l4-4V6H6z"/>
+                </svg>
+            </button>
+            <div class="toolbar-divider"></div>
+            <div class="color-picker">
+                <input type="color" id="color-input" value="#000000" title="颜色">
+            </div>
+            <div class="stroke-width-picker">
+                <input type="range" id="stroke-width" min="1" max="20" value="2" title="粗细">
+                <span id="stroke-width-value">2</span>
+            </div>
+            <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16.24 3.56l4.2 4.2-11.08 11.08-5.66-5.66L16.24 3.56zM4.15 13.54L2 15.69l5.66 5.66h7.07l2.83-2.83-5.66-5.66-7.75.68z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 房间信息 (右上角浮层) -->
+    <div id="room-info" class="overlay room-info">
+        <div class="room-id">房间: <span id="current-room-id">-</span></div>
+        <button id="collaborate-btn" class="icon-btn primary-icon-btn" title="协作 & 分享">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+        </button>
+        <button id="export-btn" class="icon-btn" title="导出">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/>
+            </svg>
+        </button>
+        <button id="import-btn" class="icon-btn" title="导入">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6-.67l-2.59 2.58L9 12.5l5-5 5 5-1.41 1.41L13 11.33V21h-2z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 在线用户 (右上角浮层) -->
+    <div id="online-users" class="overlay online-users">
+        <!-- 在线用户将动态生成 -->
+    </div>
+
+    <!-- 贴纸列表 (右侧浮层) -->
+    <div id="sticky-panel" class="overlay sticky-panel collapsed">
+        <div class="panel-toggle" id="sticky-panel-toggle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 4h16v12h-6v4H4V4zm2 2v10h8v4l4-4V6H6z"/>
+            </svg>
+            <span class="panel-title">贴纸</span>
+        </div>
+        <div class="panel-content" id="sticky-panel-content">
+            <div class="sticky-filter">
+                <button class="filter-btn active" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="pending">未完成</button>
+                <button class="filter-btn" data-filter="completed">已完成</button>
+            </div>
+            <div id="sticky-list" class="sticky-list">
+                <!-- 贴纸列表将动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态信息 (右下角浮层) -->
+    <div id="status-info" class="overlay status-info">
+        <div>缩放: <span id="zoom-level">100%</span></div>
+        <div>对象: <span id="object-count">0</span></div>
+        <div>FPS: <span id="fps-count">60</span></div>
+    </div>
+
+    <!-- 顶部操作栏 (顶部中央浮层) -->
+    <div id="bottom-toolbar" class="overlay top-toolbar">
+        <button id="undo-btn" class="icon-btn" title="撤销 (Ctrl+Z)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+            </svg>
+        </button>
+        <button id="redo-btn" class="icon-btn" title="重做 (Ctrl+Y)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/>
+            </svg>
+        </button>
+        <button id="clear-btn" class="icon-btn" title="清空画布">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 选中操作栏 (底部中央浮层，仅在选中时显示) -->
+    <div id="selection-actions" class="overlay bottom-toolbar hidden">
+        <button id="delete-selected-btn" class="icon-btn primary-icon-btn" title="删除选中 (Delete)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- 协作与分享弹窗 -->
+    <div id="collaborate-modal" class="modal hidden">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2>协作 & 分享</h2>
+                <button class="close-btn" id="close-collaborate-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="collaborate-tabs">
+                    <button class="tab-btn active" data-tab="host">发起协作</button>
+                    <button class="tab-btn" data-tab="join">加入协作</button>
+                    <button class="tab-btn" data-tab="share">仅分享房间</button>
+                </div>
+
+                <!-- 发起协作 -->
+                <div id="host-tab" class="tab-content active">
+                    <div class="tab-intro">
+                        <p>💡 作为主持人邀请他人协作，实时同步绘制内容</p>
+                    </div>
+
+                    <button id="create-session-btn" class="primary-btn full-width big-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 8px;">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        创建协作会话
+                    </button>
+
+                    <div id="host-signal-area" class="signal-area hidden">
+                        <div class="step-indicator">
+                            <div class="step active">
+                                <div class="step-number">1</div>
+                                <div class="step-label">分享房间链接</div>
+                            </div>
+                            <div class="step-divider"></div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-label">交换连接信令</div>
+                            </div>
+                            <div class="step-divider"></div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-label">开始协作</div>
+                            </div>
+                        </div>
+
+                        <div class="share-section">
+                            <h3>📍 步骤1: 分享房间链接</h3>
+                            <p class="help-text">先让参与者通过此链接进入同一房间</p>
+                            <div class="share-link-container">
+                                <input type="text" id="host-room-link" readonly>
+                                <button id="copy-room-link-btn" class="copy-btn">复制链接</button>
+                            </div>
+                        </div>
+
+                        <div class="share-section">
+                            <h3>🔗 步骤2: 分享连接信令</h3>
+                            <p class="help-text">通过微信、QQ等方式将此信令发送给参与者</p>
+                            <textarea id="host-signal-output" readonly rows="4"></textarea>
+                            <button id="copy-host-signal-btn" class="copy-btn full-width">复制连接信令</button>
+                        </div>
+
+                        <div class="divider-section">
+                            <div class="divider-line"></div>
+                            <div class="divider-text">等待参与者响应</div>
+                            <div class="divider-line"></div>
+                        </div>
+
+                        <div class="share-section">
+                            <h3>✅ 步骤3: 处理参与者应答</h3>
+                            <p class="help-text">将参与者发来的应答信令粘贴到此处</p>
+                            <textarea id="answer-signal-input" placeholder="粘贴参与者的应答信令..." rows="4"></textarea>
+                            <button id="process-answer-btn" class="primary-btn full-width">处理应答并建立连接</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 加入协作 -->
+                <div id="join-tab" class="tab-content">
+                    <div class="tab-intro">
+                        <p>💡 使用主持人提供的信令加入协作会话</p>
+                    </div>
+
+                    <div class="share-section">
+                        <h3>📍 步骤1: 确保已进入房间</h3>
+                        <p class="help-text">如果主持人分享了房间链接，请先访问链接进入房间</p>
+                        <div class="current-room-display">
+                            当前房间: <strong id="join-current-room">-</strong>
+                        </div>
+                    </div>
+
+                    <div class="share-section">
+                        <h3>🔗 步骤2: 粘贴主持人信令</h3>
+                        <p class="help-text">粘贴主持人发送的邀请信令</p>
+                        <textarea id="offer-signal-input" placeholder="粘贴主持人的邀请信令..." rows="4"></textarea>
+                        <button id="process-offer-btn" class="primary-btn full-width">处理邀请并生成应答</button>
+                    </div>
+
+                    <div id="join-signal-area" class="signal-area hidden">
+                        <div class="share-section success-section">
+                            <h3>✅ 步骤3: 发送应答给主持人</h3>
+                            <p class="success-text">应答已生成! 请将下方信令发送给主持人</p>
+                            <textarea id="answer-signal-output" readonly rows="4"></textarea>
+                            <button id="copy-answer-signal-btn" class="copy-btn full-width">复制应答信令</button>
+                            <p class="info-text">⏳ 等待主持人处理应答后即可开始协作</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 仅分享房间 -->
+                <div id="share-tab" class="tab-content">
+                    <div class="tab-intro">
+                        <p>💡 仅分享房间链接，不建立实时协作连接</p>
+                        <p class="warning-text">⚠️ 注意: 此模式下用户可以独立使用白板，但内容不会实时同步</p>
+                    </div>
+
+                    <div class="share-section">
+                        <h3>📍 房间链接</h3>
+                        <p class="help-text">分享此链接让其他人访问同一房间（数据不同步）</p>
+                        <div class="share-link-container">
+                            <input type="text" id="simple-share-link" readonly>
+                            <button id="copy-simple-link-btn" class="copy-btn">复制链接</button>
+                        </div>
+                    </div>
+
+                    <div class="share-section">
+                        <div class="info-box">
+                            <h4>💭 使用场景</h4>
+                            <ul>
+                                <li>让多人在同一房间独立绘制</li>
+                                <li>通过导出/导入JSON手动合并内容</li>
+                                <li>异步协作，不需要实时同步</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="share-section">
+                        <p class="help-text">💡 如需实时协作，请使用"发起协作"或"加入协作"功能</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导出弹窗 -->
+    <div id="export-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>导出画布</h2>
+                <button class="close-btn" id="close-export-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <label>
+                        <input type="radio" name="export-type" value="png" checked>
+                        导出为 PNG 图片
+                    </label>
+                    <label>
+                        <input type="radio" name="export-type" value="json">
+                        导出为 JSON 文件
+                    </label>
+                </div>
+                <div class="export-filename">
+                    <label>文件名:</label>
+                    <input type="text" id="export-filename" value="peerboard">
+                </div>
+                <div class="export-actions">
+                    <button id="do-export-btn" class="primary-btn">导出</button>
+                    <button id="cancel-export-btn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div id="import-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>导入画布</h2>
+                <button class="close-btn" id="close-import-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="import-area" id="import-area">
+                    <p>拖拽 JSON 文件到此处，或点击选择文件</p>
+                    <input type="file" id="import-file-input" accept=".json" hidden>
+                </div>
+                <div class="import-preview hidden" id="import-preview">
+                    <p>文件: <span id="import-filename"></span></p>
+                    <p>对象数量: <span id="import-object-count"></span></p>
+                    <div class="import-strategy">
+                        <label>
+                            <input type="radio" name="import-strategy" value="merge" checked>
+                            合并到当前画布
+                        </label>
+                        <label>
+                            <input type="radio" name="import-strategy" value="replace">
+                            覆盖当前画布
+                        </label>
+                    </div>
+                    <div class="import-actions">
+                        <button id="do-import-btn" class="primary-btn">导入</button>
+                        <button id="cancel-import-btn">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 清空画布确认弹窗 -->
+    <div id="clear-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>清空画布</h2>
+                <button class="close-btn" id="close-clear-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>确定要清空当前画布吗？此操作不可撤销。</p>
+                <div class="export-actions">
+                    <button id="do-clear-btn" class="primary-btn">确认清空</button>
+                    <button id="cancel-clear-btn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑贴纸弹窗 -->
+    <div id="sticky-edit-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>编辑贴纸</h2>
+                <button class="close-btn" id="close-sticky-edit-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="sticky-edit-text" rows="5" style="width: 100%;"></textarea>
+                <div class="export-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button id="do-sticky-edit" class="primary-btn">保存</button>
+                    <button id="cancel-sticky-edit">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/room.js"></script>
+    <script src="js/canvas.js"></script>
+    <script src="js/tools.js"></script>
+    <script src="js/webrtc.js"></script>
+    <script src="js/peers.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/lock.js"></script>
+    <script src="js/signaling.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
